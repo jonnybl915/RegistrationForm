@@ -39,6 +39,7 @@ public class Main {
         stmt.setString(2, user.address);
         stmt.setString(3, user.email);
         stmt.setInt(4, user.id);
+        stmt.execute();
         return new User(user.id, user.username, user.address, user.email);
     }
     public static void deleteUser(Connection conn, Integer id) throws SQLException {
