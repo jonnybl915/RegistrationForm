@@ -1,5 +1,7 @@
 package com.theironyard.jdblack;
 
+import jodd.json.JsonParser;
+import jodd.json.JsonSerializer;
 import org.h2.tools.Server;
 import spark.Spark;
 
@@ -12,6 +14,7 @@ public class Main {
         Statement stmt = conn.createStatement();
         stmt.execute("CREATE TABLE IF NOT EXISTS users (id IDENTITY, username VARCHAR, address VARCHAR, email VARCHAR)");
     }
+
     public static void insertUser(Connection conn, User user) throws SQLException {
         PreparedStatement stmt = conn.prepareStatement("INSERT INTO users VALUES (NULL, ?, ?, ?)");
         stmt.setString(1, user.username);
@@ -19,6 +22,7 @@ public class Main {
         stmt.setString(3, user.email);
         stmt.execute();
     }
+
     public static ArrayList<User> selectUsers(Connection conn) throws SQLException {
         PreparedStatement stmt = conn.prepareStatement("SELECT * FROM users");
         ResultSet results = stmt.executeQuery();
@@ -33,6 +37,7 @@ public class Main {
         }
         return userList;
     }
+
     public static User updateUser(Connection conn, User user) throws SQLException {
         PreparedStatement stmt = conn.prepareStatement("Update users SET username = ?, address = ?, email = ? WHERE id = ?");
         stmt.setString(1, user.username);
@@ -42,6 +47,7 @@ public class Main {
         stmt.execute();
         return new User(user.id, user.username, user.address, user.email);
     }
+
     public static void deleteUser(Connection conn, Integer id) throws SQLException {
         PreparedStatement stmt = conn.prepareStatement("DELETE FROM users WHERE id = ?");
         stmt.setInt(1, id);
@@ -55,5 +61,42 @@ public class Main {
 
         Spark.externalStaticFileLocation("public");
         Spark.init();
+
+        Spark.get(
+                "/user",
+                (request, response) -> {
+                    ArrayList<User> users = selectUsers(conn);
+                    JsonSerializer s = new JsonSerializer();
+                    return s.serialize(users);
+                }
+        );
+        Spark.post(
+                "/user",
+                (request, response) -> {
+                    String body = request.body();
+                    JsonParser parser = new JsonParser();
+                    User user = parser.parse(body, User.class);
+                    insertUser(conn, user);
+                    return "";
+                }
+        );
+        Spark.put(
+                "/user",
+                (request, response) -> {
+                    String body = request.body();
+                    JsonParser parser = new JsonParser();
+                    User user = parser.parse(body, User.class);
+                    updateUser(conn, user);
+                    return "";
+                }
+        );
+        Spark.delete(
+                "/user/:id",
+                (request, response) -> {
+                    Integer id = Integer.valueOf(request.params(":id"));
+                    deleteUser(conn, id);
+                    return "";
+                }
+        );
     }
 }
